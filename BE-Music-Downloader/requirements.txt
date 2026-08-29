@@ -1,0 +1,10 @@
+Flask>=2.3.0
+Flask-CORS>=4.0.0
+Flask-SQLAlchemy>=3.0.0
+SQLAlchemy>=2.0.0
+APScheduler>=3.10.0
+python-dotenv>=1.0.0
+spotdl>=4.5.0
+yt-dlp>=2023.10.0
+requests>=2.32.0
+Werkzeug>=2.3.0

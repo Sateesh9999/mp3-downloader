@@ -1,74 +1,96 @@
-import { useState } from 'react'
-import './App.css'
-
-const backendUrl = 'http://127.0.0.1:5000/download'; // **REMEMBER TO CHANGE THIS**
-//const dataToSend = {
-//    "spotify_url": "https://open.spotify.com/playlist/35lHvGWbIJMJLBNnbu2gLm?si=9lyvAmM8QfGNySvLZ7HplQ"
-//};
-
-async function postSpotifyUrl(url, spotifyUrl) {
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ spotify_url: spotifyUrl })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! Status: ${response.status}. Response: ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('Success:', result);
-        return result;
-
-    } catch (error) {
-        console.error('There was a problem with the fetch operation:', error.message);
-    }
-}
-
-// Call the function to send the data
+import React, { useState, useEffect } from 'react'
+import './styles/App.css'
+import PlaylistManager from './pages/PlaylistManager'
+import SyncDashboard from './pages/SyncDashboard'
+import Library from './pages/Library'
+import { healthCheck } from './api/client'
 
 function App() {
-  const [spotifyUrl, setSpotifyUrl] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('playlists')
+  const [isConnected, setIsConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!spotifyUrl) return;
-    setLoading(true);
-    try {
-      const res = await postSpotifyUrl(backendUrl, spotifyUrl);
-      console.log('Server response:', res);
-    } catch (err) {
-      // optionally show UI error
-      console.error(err);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    // Check server connection
+    const checkConnection = async () => {
+      try {
+        await healthCheck()
+        setIsConnected(true)
+      } catch (error) {
+        console.error('Server connection failed:', error)
+        setIsConnected(false)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+
+    checkConnection()
+    
+    // Check connection every 30 seconds
+    const interval = setInterval(checkConnection, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
-    <>
-      <h1>download spotify playlists....</h1>
-      <div className="card">
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Paste Spotify playlist URL"
-            value={spotifyUrl}
-            onChange={(e) => setSpotifyUrl(e.target.value)}
-            style={{ width: '100%' }}
-          />
-          <button type="submit" disabled={!spotifyUrl || loading}>
-            {loading ? 'Downloading...' : 'Download'}
-          </button>
-        </form>
-      </div>
-    </>
+    <div className="app">
+      <header className="app-header">
+        <div className="header-content">
+          <h1>🎵 Music Downloader</h1>
+          <p className="subtitle">Sync & Stream your playlists</p>
+          <div className="connection-status">
+            <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></span>
+            <span className="status-text">
+              {isConnected ? 'Connected to server' : 'Disconnected from server'}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <nav className="app-nav">
+        <button 
+          className={`nav-button ${activeTab === 'playlists' ? 'active' : ''}`}
+          onClick={() => setActiveTab('playlists')}
+        >
+          📋 Playlists
+        </button>
+        <button 
+          className={`nav-button ${activeTab === 'sync' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sync')}
+        >
+          🔄 Sync
+        </button>
+        <button 
+          className={`nav-button ${activeTab === 'library' ? 'active' : ''}`}
+          onClick={() => setActiveTab('library')}
+        >
+          🎧 Library
+        </button>
+      </nav>
+
+      <main className="app-content">
+        {loading ? (
+          <div className="loading">
+            <p>Connecting to server...</p>
+          </div>
+        ) : !isConnected ? (
+          <div className="error-box">
+            <h2>❌ Server Connection Failed</h2>
+            <p>Cannot connect to the backend server at <code>http://localhost:5000</code></p>
+            <p>Please make sure the Flask backend is running.</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'playlists' && <PlaylistManager />}
+            {activeTab === 'sync' && <SyncDashboard />}
+            {activeTab === 'library' && <Library />}
+          </>
+        )}
+      </main>
+
+      <footer className="app-footer">
+        <p>Music Downloader v1.0 | Sync your favorite playlists from Spotify & YouTube</p>
+      </footer>
+    </div>
   )
 }
 

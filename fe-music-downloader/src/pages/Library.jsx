@@ -3,7 +3,7 @@ import { playlistAPI, streamAPI, handleApiError } from '../api/client'
 import AudioPlayer from '../components/AudioPlayer'
 import '../styles/pages.css'
 
-export default function Library() {
+export default function Library({ initialPlaylistId }) {
   const [playlists, setPlaylists] = useState([])
   const [selectedPlaylistId, setSelectedPlaylistId] = useState(null)
   const [playlistTracks, setPlaylistTracks] = useState(null)
@@ -14,6 +14,12 @@ export default function Library() {
   useEffect(() => {
     fetchPlaylists()
   }, [])
+
+  useEffect(() => {
+    if (initialPlaylistId) {
+      setSelectedPlaylistId(initialPlaylistId)
+    }
+  }, [initialPlaylistId])
 
   useEffect(() => {
     if (selectedPlaylistId) {
@@ -63,6 +69,7 @@ export default function Library() {
       (track.artist && track.artist.toLowerCase().includes(query))
     )
   }) || []
+  const playableTracks = filteredTracks.filter(track => track.download_status === 'completed')
 
   return (
     <div className="page-container">
@@ -165,7 +172,7 @@ export default function Library() {
         <div className="player-section">
           <AudioPlayer 
             track={currentTrack}
-            tracks={filteredTracks}
+            tracks={playableTracks}
             onTrackChange={setCurrentTrack}
             onClose={() => setCurrentTrack(null)}
           />

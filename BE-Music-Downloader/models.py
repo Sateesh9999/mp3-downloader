@@ -54,7 +54,7 @@ class Track(db.Model):
     title = db.Column(db.String(255), nullable=False)
     artist = db.Column(db.String(255), nullable=True)
     duration = db.Column(db.Integer, nullable=True)  # in seconds
-    source_id = db.Column(db.String(255), nullable=True)  # Platform-specific track ID (Spotify URI or YouTube ID)
+    source_id = db.Column(db.String(255), nullable=True)  # YouTube Track ID
     
     # File information
     filename = db.Column(db.String(500), nullable=True)

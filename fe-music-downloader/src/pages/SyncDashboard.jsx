@@ -5,7 +5,6 @@ import '../styles/pages.css'
 export default function SyncDashboard() {
   const [playlists, setPlaylists] = useState([])
   const [syncHistory, setSyncHistory] = useState([])
-  const [schedulerConfig, setSchedulerConfig] = useState(null)
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
@@ -37,7 +36,6 @@ export default function SyncDashboard() {
       setSyncHistory(historyRes.data.sync_histories || [])
       
       const config = configRes.data.config
-      setSchedulerConfig(config)
       setScheduleForm({
         enabled: config.enabled,
         day_of_week: config.day_of_week,
@@ -82,7 +80,7 @@ export default function SyncDashboard() {
     e.preventDefault()
     try {
       setLoading(true)
-      const response = await schedulerAPI.updateConfig(scheduleForm)
+      await schedulerAPI.updateConfig(scheduleForm)
       showMessage('Schedule updated successfully!', 'success')
       fetchData()
     } catch (error) {

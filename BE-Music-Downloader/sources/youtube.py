@@ -32,9 +32,9 @@ class YouTubeSource:
         try:
             command = [
                 'yt-dlp',
-                '--dump-json',
-                '--extract-audio',
-                '--audio-format', 'mp3',
+                '--dump-single-json',
+                '--flat-playlist',
+                '--skip-download',
                 url
             ]
             
@@ -47,11 +47,12 @@ class YouTubeSource:
             
             if result.returncode == 0:
                 data = json.loads(result.stdout)
+                entries = data.get('entries') or []
                 return {
                     'name': data.get('title', 'YouTube Playlist'),
                     'source_id': YouTubeSource.extract_playlist_id(url),
                     'description': data.get('description', ''),
-                    'track_count': len(data.get('entries', []))
+                    'track_count': len(entries)
                 }
             else:
                 return None
@@ -72,8 +73,9 @@ class YouTubeSource:
         try:
             command = [
                 'yt-dlp',
-                '--dump-json',
+                '--dump-single-json',
                 '--flat-playlist',
+                '--skip-download',
                 url
             ]
             
@@ -88,7 +90,7 @@ class YouTubeSource:
                 data = json.loads(result.stdout)
                 tracks = []
                 
-                for entry in data.get('entries', []):
+                for entry in data.get('entries') or []:
                     tracks.append({
                         'title': entry.get('title', 'Unknown'),
                         'artist': entry.get('uploader', 'Unknown'),
@@ -121,8 +123,10 @@ class YouTubeSource:
                 'yt-dlp',
                 '--extract-audio',
                 '--audio-format', 'mp3',
-                '--audio-quality', '192',
-                '-o', os.path.join(output_dir, '%(title)s.%(ext)s'),
+                '--audio-quality', '0',
+                # The video ID prevents same-title tracks and parallel workers
+                # from overwriting one another.
+                '-o', os.path.join(output_dir, '%(title)s [%(id)s].%(ext)s'),
                 video_url
             ]
             
@@ -147,9 +151,15 @@ class YouTubeSource:
                 return True, "Download successful", file_info
             else:
                 # Try to find the file by searching the output directory
-                mp3_files = [f for f in os.listdir(output_dir) if f.endswith('.mp3')]
+                mp3_files = [
+                    f for f in os.listdir(output_dir)
+                    if f.lower().endswith('.mp3') and f'[{video_id}]' in f
+                ]
                 if mp3_files:
-                    file_path = os.path.join(output_dir, mp3_files[-1])
+                    file_path = max(
+                        (os.path.join(output_dir, name) for name in mp3_files),
+                        key=os.path.getmtime,
+                    )
                     return True, "Download successful", file_path
                 
                 return False, "File not found after download", None
@@ -163,36 +173,36 @@ class YouTubeSource:
         except Exception as e:
             return False, f"Unexpected error: {str(e)}", None
     
-    @staticmethod
-    def download_playlist(url: str, output_dir: str, timeout: int = 3600) -> Tuple[bool, str]:
-        """
-        Download entire YouTube playlist
-        Returns: (success, message)
-        """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+    # @staticmethod
+    # def download_playlist(url: str, output_dir: str, timeout: int = 3600) -> Tuple[bool, str]:
+    #     """
+    #     Download entire YouTube playlist
+    #     Returns: (success, message)
+    #     """
+    #     if not os.path.exists(output_dir):
+    #         os.makedirs(output_dir)
         
-        try:
-            command = [
-                'yt-dlp',
-                '--extract-audio',
-                '--audio-format', 'mp3',
-                '--audio-quality', '192',
-                '-o', os.path.join(output_dir, '%(title)s.%(ext)s'),
-                url
-            ]
+    #     try:
+    #         command = [
+    #             'yt-dlp',
+    #             '--extract-audio',
+    #             '--audio-format', 'opus',
+    #             '--audio-quality', '0',
+    #             '-o', os.path.join(output_dir, '%(title)s.%(ext)s'),
+    #             url
+    #         ]
             
-            print(f"Downloading YouTube playlist: {url}")
+    #         print(f"Downloading YouTube playlist: {url}")
             
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=True
-            )
+    #         result = subprocess.run(
+    #             command,
+    #             capture_output=True,
+    #             text=True,
+    #             timeout=timeout,
+    #             check=True
+    #         )
             
-            return True, "Playlist downloaded successfully"
+    #         return True, "Playlist downloaded successfully"
             
         except subprocess.TimeoutExpired:
             return False, "Download timed out (exceeded time limit)"

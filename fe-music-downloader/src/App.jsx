@@ -7,6 +7,7 @@ import { healthCheck } from './api/client'
 
 function App() {
   const [activeTab, setActiveTab] = useState('playlists')
+  const [libraryPlaylistId, setLibraryPlaylistId] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -80,9 +81,16 @@ function App() {
           </div>
         ) : (
           <>
-            {activeTab === 'playlists' && <PlaylistManager />}
+            {activeTab === 'playlists' && (
+              <PlaylistManager
+                onViewPlaylist={(playlistId) => {
+                  setLibraryPlaylistId(playlistId)
+                  setActiveTab('library')
+                }}
+              />
+            )}
             {activeTab === 'sync' && <SyncDashboard />}
-            {activeTab === 'library' && <Library />}
+            {activeTab === 'library' && <Library initialPlaylistId={libraryPlaylistId} />}
           </>
         )}
       </main>

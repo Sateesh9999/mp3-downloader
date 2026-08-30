@@ -12,10 +12,22 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
     const audio = audioRef.current
     if (!audio) return
 
+    setCurrentTime(0)
+    setDuration(0)
+    if (isPlaying) {
+      audio.play().catch(() => setIsPlaying(false))
+    }
+  }, [track.id])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+
     const handleEnded = () => {
       // Play next track
       const currentIdx = tracks.findIndex(t => t.id === track.id)
       if (currentIdx < tracks.length - 1) {
+        setIsPlaying(true)
         onTrackChange(tracks[currentIdx + 1])
       }
     }
@@ -31,7 +43,6 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
       } else {
         audioRef.current.play()
       }
-      setIsPlaying(!isPlaying)
     }
   }
 
@@ -65,6 +76,9 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
         src={streamAPI.stream(track.id)}
         onLoadedMetadata={() => setDuration(audioRef.current.duration)}
         onTimeUpdate={() => setCurrentTime(audioRef.current.currentTime)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onError={() => setIsPlaying(false)}
       />
 
       <div className="player-track-info">

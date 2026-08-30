@@ -72,6 +72,7 @@ def create_app(config_name=None):
             )
             
             if success:
+                sync_single_playlist(playlist.id)
                 return jsonify({
                     'status': 'success',
                     'message': message,

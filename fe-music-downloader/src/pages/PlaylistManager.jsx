@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { playlistAPI, handleApiError } from '../api/client'
 import '../styles/pages.css'
 
-export default function PlaylistManager() {
+export default function PlaylistManager({ onViewPlaylist }) {
   const [playlists, setPlaylists] = useState([])
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -34,7 +34,7 @@ export default function PlaylistManager() {
 
     try {
       setLoading(true)
-      const response = await playlistAPI.add(url)
+      await playlistAPI.add(url)
       showMessage('Playlist added successfully!', 'success')
       setUrl('')
       fetchPlaylists()
@@ -120,13 +120,14 @@ export default function PlaylistManager() {
                 </div>
 
                 <div className="playlist-actions">
-                  <a 
-                    href={`/playlist/${playlist.id}`}
+                  <button
+                    type="button"
+                    onClick={() => onViewPlaylist(playlist.id)}
                     className="btn btn-secondary"
                     title="View playlist tracks"
                   >
                     📂 View
-                  </a>
+                  </button>
                   <button 
                     onClick={() => handleDeletePlaylist(playlist.id, playlist.name)}
                     className="btn btn-danger"

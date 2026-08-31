@@ -3,13 +3,15 @@ from datetime import datetime
 import os
 
 try:
-  client = pymongo.MongoClient("")
+    # link = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    client = pymongo.MongoClient("mongodb+srv://thakkellapatisateesh_db_user:LDv3zC6fyxC75jQY@songsplaylistdetails.tvv6tx3.mongodb.net/")
+    db = client.music_downloader
+
   
 # return a friendly error if a URI error is thrown 
 except pymongo.errors.ConfigurationError:
   print("An Invalid URI host error was received. Is your Atlas host name correct in your connection string?")
   
-db = client.music_downloader
 
 class Playlist():
     """Store synced playlists"""

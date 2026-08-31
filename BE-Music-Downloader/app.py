@@ -1,26 +1,35 @@
 import os
+from flask.json.provider import DefaultJSONProvider
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 from io import BytesIO
+from bson import ObjectId
 
 # Import configuration and models
 from config import get_config
 from models import db, Playlist, Track, SyncHistory, ScheduledSync
 from services import SyncService
 
+class MongoJSONProvider(DefaultJSONProvider):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
 
 def create_app(config_name=None):
     """Application factory"""
     app = Flask(__name__)
+
+    app.json = MongoJSONProvider(app)
     
     # Load configuration
     config = get_config(config_name)
     app.config.from_object(config)
     
     # Initialize database
-    db.init_app(app)
+    # db.init_app(app)
     
     # Initialize CORS
     CORS(app, resources={
@@ -30,8 +39,8 @@ def create_app(config_name=None):
     })
     
     # Create tables
-    with app.app_context():
-        db.create_all()
+    # with app.app_context():
+    #     db.create_all()
     
     # Initialize scheduler
     scheduler = BackgroundScheduler()
@@ -43,11 +52,12 @@ def create_app(config_name=None):
     def get_playlists():
         """Get all synced playlists"""
         try:
-            playlists = Playlist.query.all()
+            playlists = Playlist.getPlaylists()
+            playlists_list = list(playlists)
             return jsonify({
                 'status': 'success',
-                'playlists': [p.to_dict() for p in playlists],
-                'count': len(playlists)
+                'playlists': playlists_list,
+                'count': len(playlists_list)
             }), 200
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -72,11 +82,11 @@ def create_app(config_name=None):
             )
             
             if success:
-                sync_single_playlist(playlist.id)
+                sync_single_playlist(playlist['_id'])
                 return jsonify({
                     'status': 'success',
                     'message': message,
-                    'playlist': playlist.to_dict()
+                    'playlist': playlist
                 }), 201
             else:
                 return jsonify({'status': 'error', 'message': message}), 400
@@ -84,10 +94,11 @@ def create_app(config_name=None):
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
     
-    @app.route('/api/playlists/<int:playlist_id>', methods=['GET'])
+    @app.route('/api/playlists/<string:playlist_id>', methods=['GET'])
     def get_playlist_details(playlist_id):
         """Get detailed information about a playlist"""
         try:
+            playlist_id = ObjectId(playlist_id)
             details = SyncService.get_playlist_details(playlist_id)
             
             if not details:
@@ -101,10 +112,11 @@ def create_app(config_name=None):
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
     
-    @app.route('/api/playlists/<int:playlist_id>', methods=['DELETE'])
+    @app.route('/api/playlists/<string:playlist_id>', methods=['DELETE'])
     def delete_playlist(playlist_id):
         """Delete a playlist from sync"""
         try:
+            playlist_id = ObjectId(playlist_id)
             data = request.get_json() if request.is_json else {}
             delete_files = data.get('delete_files', False)
             
@@ -118,10 +130,11 @@ def create_app(config_name=None):
     
     # --- API Routes: Sync Control ---
     
-    @app.route('/api/sync/playlist/<int:playlist_id>', methods=['POST'])
+    @app.route('/api/sync/playlist/<string:playlist_id>', methods=['POST'])
     def sync_single_playlist(playlist_id):
         """Manually sync a single playlist"""
         try:
+            playlist_id = ObjectId(playlist_id)
             success, message, history = SyncService.sync_playlist(
                 playlist_id,
                 app.config['DOWNLOAD_TIMEOUT']
@@ -134,7 +147,7 @@ def create_app(config_name=None):
             }
             
             if history:
-                response['sync_history'] = history.to_dict()
+                response['sync_history'] = history
             
             return jsonify(response), status_code
             
@@ -152,7 +165,7 @@ def create_app(config_name=None):
             return jsonify({
                 'status': 'success' if success else 'error',
                 'message': message,
-                'sync_histories': [h.to_dict() for h in histories if h]
+                'sync_histories': histories
             }), 200
             
         except Exception as e:
@@ -162,17 +175,19 @@ def create_app(config_name=None):
     def get_sync_history():
         """Get sync history"""
         try:
-            playlist_id = request.args.get('playlist_id', type=int)
+            playlist_id_str = request.args.get('playlist_id', type=str)
             
-            query = SyncHistory.query
-            if playlist_id:
-                query = query.filter_by(playlist_id=playlist_id)
-            
-            histories = query.order_by(SyncHistory.start_time.desc()).all()
+            if playlist_id_str:
+                playlist_id = ObjectId(playlist_id_str)
+                # MongoDB query: find and sort by start_time descending
+                histories = list(db['SyncHistory'].find({'playlist_id': playlist_id}).sort('start_time', -1))
+            else:
+                # Get all histories if no playlist_id provided
+                histories = list(db['SyncHistory'].find({}).sort('start_time', -1))
             
             return jsonify({
                 'status': 'success',
-                'sync_histories': [h.to_dict() for h in histories]
+                'sync_histories': histories
             }), 200
             
         except Exception as e:
@@ -182,16 +197,16 @@ def create_app(config_name=None):
     def get_sync_status():
         """Get current sync status of all playlists"""
         try:
-            playlists = Playlist.query.all()
+            playlists = Playlist.getPlaylists()
             
             status_info = []
             for p in playlists:
                 status_info.append({
-                    'id': p.id,
-                    'name': p.name,
-                    'sync_status': p.sync_status,
-                    'last_sync_time': p.last_sync_time.isoformat() if p.last_sync_time else None,
-                    'track_count': p.track_count
+                    'id': p['_id'],
+                    'name': p['name'],
+                    'sync_status': p['sync_status'],
+                    'last_sync_time': p['last_sync_time'].isoformat() if p['last_sync_time'] else None,
+                    'track_count': p['track_count']
                 })
             
             return jsonify({
@@ -204,20 +219,21 @@ def create_app(config_name=None):
     
     # --- API Routes: Streaming & Download ---
     
-    @app.route('/api/stream/<int:track_id>', methods=['GET'])
+    @app.route('/api/stream/<string:track_id>', methods=['GET'])
     def stream_track(track_id):
         """Stream audio from server"""
         try:
-            track = Track.query.get(track_id)
+            track_id = ObjectId(track_id)
+            track = Track.getTrackById(track_id)
             
             if not track:
                 return jsonify({'status': 'error', 'message': 'Track not found'}), 404
             
-            if not track.file_path or not os.path.exists(track.file_path):
+            if not track['file_path'] or not os.path.exists(track['file_path']):
                 return jsonify({'status': 'error', 'message': 'Track file not found'}), 404
             
             return send_file(
-                track.file_path,
+                track['file_path'],
                 mimetype='audio/mpeg',
                 as_attachment=False
             )
@@ -225,23 +241,24 @@ def create_app(config_name=None):
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
     
-    @app.route('/api/download/<int:track_id>', methods=['GET'])
+    @app.route('/api/download/<string:track_id>', methods=['GET'])
     def download_track(track_id):
         """Download track file to mobile"""
         try:
-            track = Track.query.get(track_id)
+            track_id = ObjectId(track_id)
+            track = Track.getTrackById(track_id)
             
             if not track:
                 return jsonify({'status': 'error', 'message': 'Track not found'}), 404
             
-            if not track.file_path or not os.path.exists(track.file_path):
+            if not track['file_path'] or not os.path.exists(track['file_path']):
                 return jsonify({'status': 'error', 'message': 'Track file not found'}), 404
             
             return send_file(
-                track.file_path,
+                track['file_path'],
                 mimetype='audio/mpeg',
                 as_attachment=True,
-                download_name=track.filename or 'track.mp3'
+                download_name=track['filename'] or 'track.mp3'
             )
             
         except Exception as e:
@@ -253,17 +270,23 @@ def create_app(config_name=None):
     def get_scheduler_config():
         """Get current scheduler configuration"""
         try:
-            config = ScheduledSync.query.first()
+            config = ScheduledSync.getSchedulerConfig()
             
             if not config:
                 # Create default config
-                config = ScheduledSync()
-                db.session.add(config)
-                db.session.commit()
+                config = ScheduledSync.addSchedulerConfig({
+                    'enabled': True,
+                    'day_of_week': 0,
+                    'time_of_day': '02:00',
+                    'created_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow(),
+                    'last_run': None,
+                    'next_run': None
+                })
             
             return jsonify({
                 'status': 'success',
-                'config': config.to_dict()
+                'config': config
             }), 200
             
         except Exception as e:
@@ -278,21 +301,39 @@ def create_app(config_name=None):
             
             data = request.get_json()
             
-            config = ScheduledSync.query.first()
+            config = ScheduledSync.getSchedulerConfig()
             if not config:
-                config = ScheduledSync()
-            
+                config = ScheduledSync.addSchedulerConfig({
+                    'enabled': True,
+                    'day_of_week': 0,
+                    'time_of_day': '02:00',
+                    'created_at': datetime.utcnow(),
+                    'updated_at': datetime.utcnow(),
+                    'last_run': None,
+                    'next_run': None
+                })
+
             if 'enabled' in data:
-                config.enabled = data['enabled']
+                db['ScheduledSync'].update_one({'_id': config['_id']}, {'$set': {
+                    'enabled': data['enabled']
+                }})
+                config['enabled'] = data['enabled']
             if 'day_of_week' in data:
-                config.day_of_week = data['day_of_week']
+                db['ScheduledSync'].update_one({'_id': config['_id']}, {'$set': {
+                    'day_of_week': data['day_of_week']
+                }})
+                config['day_of_week'] = data['day_of_week']
             if 'time_of_day' in data:
-                config.time_of_day = data['time_of_day']
+                db['ScheduledSync'].update_one({'_id': config['_id']}, {'$set': {
+                    'time_of_day': data['time_of_day']
+                }})
+                config['time_of_day'] = data['time_of_day']
             
-            config.updated_at = datetime.utcnow()
+            db['ScheduledSync'].update_one({'_id': config['_id']}, {'$set': {
+                'updated_at': datetime.utcnow()
+            }})
+            config['updated_at'] = datetime.utcnow()
             
-            db.session.add(config)
-            db.session.commit()
             
             # Update scheduler job
             _update_scheduler_job(app, scheduler, config)
@@ -300,7 +341,7 @@ def create_app(config_name=None):
             return jsonify({
                 'status': 'success',
                 'message': 'Scheduler updated',
-                'config': config.to_dict()
+                'config': config
             }), 200
             
         except Exception as e:
@@ -335,14 +376,14 @@ def create_app(config_name=None):
             scheduler.remove_job('auto_sync')
         
         # Add new job if enabled
-        if config.enabled:
+        if config['enabled']:
             from apscheduler.triggers.cron import CronTrigger
             
             # Parse time of day (HH:MM format)
-            hour, minute = map(int, config.time_of_day.split(':'))
+            hour, minute = map(int, config['time_of_day']   .split(':'))
             
             trigger = CronTrigger(
-                day_of_week=config.day_of_week,
+                day_of_week=config['day_of_week'],
                 hour=hour,
                 minute=minute
             )
@@ -355,11 +396,11 @@ def create_app(config_name=None):
                 replace_existing=True
             )
             
-            print(f"Scheduler updated: Weekly sync on day {config.day_of_week} at {config.time_of_day}")
+            print(f"Scheduler updated: Weekly sync on day {config['day_of_week']} at {config['time_of_day']}")
     
     # Initialize scheduler on startup
     with app.app_context():
-        config_obj = ScheduledSync.query.first()
+        config_obj = ScheduledSync.getSchedulerConfig()
         if config_obj:
             _update_scheduler_job(app, scheduler, config_obj)
     

@@ -77,7 +77,7 @@ export default function PlaylistManager({ onViewPlaylist }) {
         <form onSubmit={handleAddPlaylist} className="add-playlist-form">
           <input
             type="text"
-            placeholder="Paste Spotify or YouTube playlist URL (supports both!)"
+            placeholder="Paste YouTube playlist URL"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={loading}
@@ -105,7 +105,7 @@ export default function PlaylistManager({ onViewPlaylist }) {
         ) : (
           <div className="playlists-grid">
             {playlists.map((playlist) => (
-              <div key={playlist.id} className="playlist-card">
+              <div key={playlist._id} className="playlist-card">
                 <div className="playlist-header">
                   <h3>{getSourceIcon(playlist.source)} {playlist.name}</h3>
                   <span className="source-badge">{playlist.source}</span>
@@ -122,14 +122,14 @@ export default function PlaylistManager({ onViewPlaylist }) {
                 <div className="playlist-actions">
                   <button
                     type="button"
-                    onClick={() => onViewPlaylist(playlist.id)}
+                    onClick={() => onViewPlaylist(playlist._id)}
                     className="btn btn-secondary"
                     title="View playlist tracks"
                   >
                     📂 View
                   </button>
                   <button 
-                    onClick={() => handleDeletePlaylist(playlist.id, playlist.name)}
+                    onClick={() => handleDeletePlaylist(playlist._id, playlist.name)}
                     className="btn btn-danger"
                     disabled={loading}
                   >

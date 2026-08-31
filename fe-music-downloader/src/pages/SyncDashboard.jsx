@@ -175,13 +175,13 @@ export default function SyncDashboard() {
             <p className="empty-text">No playlists to sync</p>
           ) : (
             playlists.map((playlist) => (
-              <div key={playlist.id} className="status-card">
+              <div key={playlist._id} className="status-card">
                 <h4>{playlist.name}</h4>
                 <p><strong>Status:</strong> <span className={`status-${playlist.sync_status}`}>{playlist.sync_status}</span></p>
                 <p><strong>Tracks:</strong> {playlist.track_count}</p>
                 <p><strong>Last Sync:</strong> {playlist.last_sync_time ? new Date(playlist.last_sync_time).toLocaleString() : 'Never'}</p>
                 <button
-                  onClick={() => handleSyncPlaylist(playlist.id, playlist.name)}
+                  onClick={() => handleSyncPlaylist(playlist._id, playlist.name)}
                   disabled={syncing}
                   className="btn btn-small btn-secondary"
                 >
@@ -213,7 +213,7 @@ export default function SyncDashboard() {
               </thead>
               <tbody>
                 {syncHistory.slice(0, 10).map((history) => (
-                  <tr key={history.id}>
+                  <tr key={history._id}>
                     <td>{history.playlist_id}</td>
                     <td>{history.sync_type}</td>
                     <td><span className={`status-${history.status}`}>{history.status}</span></td>

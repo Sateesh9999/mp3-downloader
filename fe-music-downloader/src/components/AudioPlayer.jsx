@@ -17,7 +17,7 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
     if (isPlaying) {
       audio.play().catch(() => setIsPlaying(false))
     }
-  }, [track.id])
+  }, [track._id])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -25,7 +25,7 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
 
     const handleEnded = () => {
       // Play next track
-      const currentIdx = tracks.findIndex(t => t.id === track.id)
+      const currentIdx = tracks.findIndex(t => t._id === track._id)
       if (currentIdx < tracks.length - 1) {
         setIsPlaying(true)
         onTrackChange(tracks[currentIdx + 1])
@@ -47,7 +47,7 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
   }
 
   const handlePrevious = () => {
-    const currentIdx = tracks.findIndex(t => t.id === track.id)
+    const currentIdx = tracks.findIndex(t => t._id === track._id)
     if (currentIdx > 0) {
       onTrackChange(tracks[currentIdx - 1])
       setIsPlaying(true)
@@ -55,7 +55,7 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
   }
 
   const handleNext = () => {
-    const currentIdx = tracks.findIndex(t => t.id === track.id)
+    const currentIdx = tracks.findIndex(t => t._id === track._id)
     if (currentIdx < tracks.length - 1) {
       onTrackChange(tracks[currentIdx + 1])
       setIsPlaying(true)
@@ -73,7 +73,7 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
     <div className="audio-player">
       <audio
         ref={audioRef}
-        src={streamAPI.stream(track.id)}
+        src={streamAPI.stream(track._id)}
         onLoadedMetadata={() => setDuration(audioRef.current.duration)}
         onTimeUpdate={() => setCurrentTime(audioRef.current.currentTime)}
         onPlay={() => setIsPlaying(true)}
@@ -113,7 +113,7 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
         </button>
         <button onClick={handleNext} className="btn-control" title="Next">⏭️</button>
         <a
-          href={streamAPI.download(track.id)}
+          href={streamAPI.download(track._id)}
           download={track.filename}
           className="btn-control"
           title="Download"

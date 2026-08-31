@@ -34,7 +34,7 @@ export default function Library({ initialPlaylistId }) {
       const playlists = response.data.playlists || []
       setPlaylists(playlists)
       if (playlists.length > 0 && !selectedPlaylistId) {
-        setSelectedPlaylistId(playlists[0].id)
+        setSelectedPlaylistId(playlists[0]._id)
       }
     } catch (error) {
       console.error(handleApiError(error))
@@ -85,9 +85,9 @@ export default function Library({ initialPlaylistId }) {
               <div className="playlist-list">
                 {playlists.map((playlist) => (
                   <button
-                    key={playlist.id}
-                    className={`playlist-item ${selectedPlaylistId === playlist.id ? 'active' : ''}`}
-                    onClick={() => setSelectedPlaylistId(playlist.id)}
+                    key={playlist._id}
+                    className={`playlist-item ${selectedPlaylistId === playlist._id ? 'active' : ''}`}
+                    onClick={() => setSelectedPlaylistId(playlist._id)}
                   >
                     <span className="playlist-name">{playlist.name}</span>
                     <span className="track-count">{playlist.track_count} tracks</span>
@@ -124,7 +124,7 @@ export default function Library({ initialPlaylistId }) {
                 ) : (
                   <div className="tracks-list">
                     {filteredTracks.map((track) => (
-                      <div key={track.id} className="track-item">
+                      <div key={track._id} className="track-item">
                         <div className="track-info">
                           <h4>{track.title}</h4>
                           <p>{track.artist || 'Unknown Artist'}</p>
@@ -144,7 +144,7 @@ export default function Library({ initialPlaylistId }) {
                                 ▶️ Play
                               </button>
                               <a
-                                href={streamAPI.download(track.id)}
+                                href={streamAPI.download(track._id)}
                                 download={track.filename}
                                 className="btn btn-small btn-secondary"
                                 title="Download"

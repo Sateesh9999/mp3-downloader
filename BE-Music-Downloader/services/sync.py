@@ -1,11 +1,13 @@
 """Unified sync service for handling playlist synchronization"""
 import os
 import re
+import bson
 import hashlib
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
+from bson import ObjectId
 from models import db, Playlist, Track, SyncHistory
 from sources import YouTubeSource
 
@@ -49,7 +51,7 @@ class SyncService:
         return cleaned or fallback
 
     @staticmethod
-    def detect_source(url: str) -> str:
+    def detect_source(url: str) -> Optional[str]:
         """Detect if URL is from YouTube"""
         if YouTubeSource.is_youtube_url(url):
             return 'youtube'
@@ -71,9 +73,9 @@ class SyncService:
             if not source:
                 return False, "URL is not a valid YouTube URL", None
 
-            existing = Playlist.query.filter_by(url=normalized_url).first()
+            existing = Playlist.getPlaylistByUrl(normalized_url)
             if existing:
-                return False, f"Playlist already synced (ID: {existing.id})", existing
+                return False, f"Playlist already synced (ID: {existing['_id']})", existing
 
             info = YouTubeSource.get_playlist_info(normalized_url)
 
@@ -88,28 +90,30 @@ class SyncService:
             playlist_folder = os.path.join(dest_dir, f'{safe_name} [{folder_suffix}]')
             os.makedirs(playlist_folder, exist_ok=True)
 
-            playlist = Playlist(
-                name=safe_name,
-                url=normalized_url,
-                source=source,
-                source_id=info.get('source_id'),
-                description=info.get('description'),
-                folder_path=playlist_folder,
-                track_count=info.get('track_count', 0),
-                sync_status='pending'
-            )
+            playlist = {
+                'name': safe_name,
+                'url': normalized_url,
+                'source': source,
+                'source_id': info.get('source_id'),
+                'description': info.get('description'),
+                'folder_path': playlist_folder,
+                'track_count': info.get('track_count', 0),
+                'sync_status': 'pending',
+                'created_at': datetime.utcnow(),
+                'last_sync_time': None
+            }
+
+            # add to database
+            playlist = Playlist.addPlaylist(playlist)
             
-            db.session.add(playlist)
-            db.session.commit()
-            
-            return True, f"Playlist added successfully (ID: {playlist.id})", playlist
+            return True, f"Playlist added successfully (ID: {playlist['_id']})", playlist
             
         except Exception as e:
             return False, f"Error adding playlist: {str(e)}", None
     
     @staticmethod
     def sync_playlist(
-        playlist_id: int,
+        playlist_id: ObjectId,
         timeout: int = 300,
         sync_type: str = 'manual',
     ) -> Tuple[bool, str, SyncHistory]:
@@ -118,70 +122,72 @@ class SyncService:
         Returns: (success, message, sync_history_object)
         """
         try:
-            playlist = Playlist.query.get(playlist_id)
+            playlist = Playlist.getPlaylistById(playlist_id)
             if not playlist:
                 return False, "Playlist not found", None
-            
+
             # Create sync history record
-            sync_history = SyncHistory(
-                playlist_id=playlist_id,
-                sync_type=sync_type,
-                status='pending'
-            )
-            db.session.add(sync_history)
-            playlist.sync_status = 'syncing'
-            db.session.commit()
-            
+            sync_history = {
+                'playlist_id': playlist_id,
+                'sync_type': sync_type,
+                'status': 'pending',
+                'start_time': datetime.utcnow(),
+                'end_time': None,
+                'total_tracks': 0,
+                'new_tracks': 0,
+                'updated_tracks': 0,
+                'failed_tracks': 0,
+                'error_message': None
+            }
+            sync_history = SyncHistory.addSyncHistory(sync_history)
+            db['Playlist'].update_one({'_id': playlist_id}, {'$set': {'sync_status': 'syncing'}})
+
             # Get current tracks in playlist
-            tracks = YouTubeSource.get_playlist_tracks(playlist.url)
-            
+            tracks = YouTubeSource.get_playlist_tracks(playlist['url'])
+
             if not tracks:
-                sync_history.status = 'failed'
-                sync_history.error_message = f"Failed to fetch tracks from {playlist.source}"
-                sync_history.end_time = datetime.utcnow()
-                playlist.sync_status = 'failed'
-                db.session.commit()
+                db['SyncHistory'].update_one({'_id': sync_history['_id']}, {'$set': {'status': 'failed'}})
+                db['SyncHistory'].update_one({'_id': sync_history['_id']}, {'$set': {'error_message': f"Failed to fetch tracks from {playlist['source']}"}})
+                db['SyncHistory'].update_one({'_id': sync_history['_id']}, {'$set': {'end_time': datetime.utcnow()}})
+                db['Playlist'].update_one({'_id': playlist_id}, {'$set': {'sync_status': 'failed'}})
                 return False, "Failed to fetch playlist tracks", sync_history
-            
+
             # Track counts
             new_tracks = 0
             updated_tracks = 0
             failed_tracks = 0
-            
+
             # Process each track
             for track_data in tracks:
                 # Check if track already exists
-                existing_track = Track.query.filter_by(
-                    playlist_id=playlist_id,
-                    source_id=track_data['source_id']
-                ).first()
-                
+                existing_track = Track.getTrackBySourceId(playlist_id, track_data['source_id'])
+
                 if existing_track:
                     updated_tracks += 1
                     # Retry failed downloads on the next sync instead of
                     # permanently excluding the track.
-                    if existing_track.download_status == 'failed':
-                        existing_track.download_status = 'pending'
-                        existing_track.download_error = None
+                    if existing_track['download_status'] == 'failed':
+                        db['Track'].update_one({'_id': existing_track['_id']}, {'$set': {'download_status': 'pending', 'download_error': None}})
                     continue
-                
+
                 # Create new track record
-                track = Track(
-                    playlist_id=playlist_id,
-                    title=track_data['title'],
-                    artist=track_data.get('artist'),
-                    duration=track_data.get('duration'),
-                    source_id=track_data['source_id'],
-                    download_status='pending'
-                )
-                
-                db.session.add(track)
+                track = Track.addTrack({
+                    'playlist_id': playlist_id,
+                    'title': track_data['title'],
+                    'artist': track_data.get('artist'),
+                    'duration': track_data.get('duration'),
+                    'source_id': track_data['source_id'],
+                    'download_status': 'pending',
+                    'filename': None,
+                    'file_path': None,
+                    'file_size': None,
+                    'added_date': datetime.utcnow(),
+                    'downloaded_date': None
+                })
+
                 new_tracks += 1
-            
-            tracks_to_download = Track.query.filter_by(
-                playlist_id=playlist_id,
-                download_status='pending'
-            ).all()
+
+            tracks_to_download = list(Track.getTracksPending(playlist_id, download_status='pending'))
 
             if tracks_to_download:
                 download_results = SyncService._download_tracks_in_parallel(
@@ -194,54 +200,71 @@ class SyncService:
                 for track in tracks_to_download:
                     try:
                         success, message, file_path = download_results.get(
-                            track.id,
+                            track['_id'],
                             (False, 'Download did not complete', None)
                         )
 
                         if success:
-                            track.download_status = 'completed'
-                            track.file_path = file_path
-                            track.filename = os.path.basename(file_path)
-                            track.file_size = os.path.getsize(file_path) if file_path and os.path.exists(file_path) else 0
-                            track.downloaded_date = datetime.utcnow()
+                            db['Track'].update_one({'_id': track['_id']}, {'$set': {
+                                'download_status': 'completed',
+                                'file_path': file_path,
+                                'filename': os.path.basename(file_path) if file_path else None,
+                                'file_size': os.path.getsize(file_path) if file_path and os.path.exists(file_path) else 0,
+                                'downloaded_date': datetime.utcnow()
+                            }})
+
                         else:
-                            track.download_status = 'failed'
-                            track.download_error = message or 'Download failed'
+                            db['Track'].update_one({'_id': track['_id']}, {'$set': {
+                                'download_status': 'failed',
+                                'download_error': message or 'Download failed'
+                            }})
                             failed_tracks += 1
 
                     except Exception as e:
-                        track.download_status = 'failed'
-                        track.download_error = str(e)
+                        db['Track'].update_one({'_id': track['_id']}, {'$set': {
+                            'download_status': 'failed',
+                            'download_error': str(e)
+                        }})
                         failed_tracks += 1
             
             # Update sync history
-            sync_history.status = 'success' if failed_tracks == 0 else 'partial'
-            sync_history.total_tracks = len(tracks)
-            sync_history.new_tracks = new_tracks
-            sync_history.updated_tracks = updated_tracks
-            sync_history.failed_tracks = failed_tracks
-            sync_history.end_time = datetime.utcnow()
+            db['SyncHistory'].update_one({'_id': sync_history['_id']}, {
+                '$set': {
+                    'status': 'success' if failed_tracks == 0 else 'partial',
+                    'total_tracks': len(tracks),
+                    'new_tracks': new_tracks,
+                    'updated_tracks': updated_tracks,
+                    'failed_tracks': failed_tracks,
+                    'end_time': datetime.utcnow()
+                }
+            })
             
             # Update playlist
-            playlist.track_count = Track.query.filter_by(playlist_id=playlist_id).count()
-            playlist.last_sync_time = datetime.utcnow()
-            playlist.sync_status = 'success' if failed_tracks == 0 else 'partial'
+            db['Playlist'].update_one({'_id': playlist_id}, {
+                '$set': {
+                    'track_count': len(list(Track.getTracksByPlaylistId(playlist_id=playlist_id))),
+                    'last_sync_time': datetime.utcnow(),
+                    'sync_status': 'success' if failed_tracks == 0 else 'partial'
+                }
+            })
             
-            db.session.commit()
             
             message = f"Sync complete: {new_tracks} new tracks, {updated_tracks} already synced, {failed_tracks} failed"
             return True, message, sync_history
             
         except Exception as e:
             if 'sync_history' in locals():
-                sync_history.status = 'failed'
-                sync_history.error_message = str(e)
-                sync_history.end_time = datetime.utcnow()
-            
+                db['SyncHistory'].update_one({'_id': sync_history['_id']}, {
+                    '$set': {
+                        'status': 'failed',
+                        'error_message': str(e)
+                    }
+                })
+                db['SyncHistory'].update_one({'_id': sync_history['_id']}, {'$set': {'end_time': datetime.utcnow()}})
+
             if 'playlist' in locals():
-                playlist.sync_status = 'failed'
-            
-            db.session.commit()
+                db['Playlist'].update_one({'_id': playlist_id}, {'$set': {'sync_status': 'failed'}})
+
             return False, f"Sync error: {str(e)}", sync_history if 'sync_history' in locals() else None
     
     @staticmethod
@@ -251,20 +274,21 @@ class SyncService:
         timeout: int = 300,
         max_workers: int = 4,
         download_func=None,
-    ) -> Dict[int, Tuple[bool, str, str]]:
+    ) -> Dict[ObjectId, Tuple[bool, str, str]]:
         """Download track files concurrently to reduce sync time."""
+        tracks = list(tracks)  # Ensure we have a list in case a generator is passed
         if not tracks:
             return {}
 
         if download_func is None:
             def download_func(playlist_obj, track, track_timeout):
                 return YouTubeSource.download_track(
-                    track.source_id,
-                    playlist_obj.folder_path,
+                    track['source_id'],
+                    playlist_obj['folder_path'],
                     track_timeout,
                 )
 
-        results: Dict[int, Tuple[bool, str, str]] = {}
+        results: Dict[ObjectId, Tuple[bool, str, str]] = {}
         worker_count = min(max_workers, max(1, len(tracks)))
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             future_map = {
@@ -275,9 +299,9 @@ class SyncService:
             for future in as_completed(future_map):
                 track = future_map[future]
                 try:
-                    results[track.id] = future.result()
+                    results[track['_id']] = future.result()
                 except Exception as exc:
-                    results[track.id] = (False, str(exc), None)
+                    results[track['_id']] = (False, str(exc), None)
 
         return results
 
@@ -290,44 +314,44 @@ class SyncService:
         Sync all playlists
         Returns: (success, message, list_of_sync_histories)
         """
-        playlists = Playlist.query.all()
+        playlists = list(Playlist.getPlaylists())
         results = []
         failures = 0
-        
+
         for playlist in playlists:
             success, message, history = SyncService.sync_playlist(
-                playlist.id,
+                playlist['_id'],
                 timeout,
                 sync_type=sync_type,
             )
             results.append(history)
             if not success:
                 failures += 1
-        
+
         message = f"Synced {len(playlists)} playlists"
         if failures:
             message += f"; {failures} failed"
         return failures == 0, message, results
     
     @staticmethod
-    def get_playlist_details(playlist_id: int) -> dict:
+    def get_playlist_details(playlist_id: ObjectId) -> Optional[dict]:
         """Get detailed information about a playlist"""
-        playlist = Playlist.query.get(playlist_id)
+        playlist = Playlist.getPlaylistById(playlist_id)
         if not playlist:
             return None
         
-        tracks = Track.query.filter_by(playlist_id=playlist_id).all()
+        tracks = list(Track.getTracksByPlaylistId(playlist_id))
         
         return {
-            'playlist': playlist.to_dict(),
-            'tracks': [track.to_dict() for track in tracks],
+            'playlist': playlist,
+            'tracks': [track for track in tracks],
             'total_tracks': len(tracks),
-            'downloaded_tracks': len([t for t in tracks if t.download_status == 'completed']),
-            'failed_tracks': len([t for t in tracks if t.download_status == 'failed'])
+            'downloaded_tracks': len([t for t in tracks if t['download_status'] == 'completed']),
+            'failed_tracks': len([t for t in tracks if t['download_status'] == 'failed'])
         }
     
     @staticmethod
-    def delete_playlist(playlist_id: int, delete_files: bool = False) -> Tuple[bool, str]:
+    def delete_playlist(playlist_id: ObjectId, delete_files: bool = False) -> Tuple[bool, str]:
         """
         Delete a playlist from sync
         Args:
@@ -336,20 +360,19 @@ class SyncService:
         Returns: (success, message)
         """
         try:
-            playlist = Playlist.query.get(playlist_id)
+            playlist = Playlist.getPlaylistById(playlist_id)
             if not playlist:
                 return False, "Playlist not found"
             
             # Delete files if requested
-            if delete_files and os.path.exists(playlist.folder_path):
+            if delete_files and os.path.exists(playlist['folder_path']):
                 import shutil
-                shutil.rmtree(playlist.folder_path)
+                shutil.rmtree(playlist['folder_path'], ignore_errors=True)
             
             # Delete database records
-            db.session.delete(playlist)
-            db.session.commit()
+            playlist = Playlist.deletePlaylist(playlist_id)
             
-            return True, f"Playlist '{playlist.name}' deleted successfully"
+            return True, f"Playlist '{playlist}' deleted successfully"
             
         except Exception as e:
             return False, f"Error deleting playlist: {str(e)}"

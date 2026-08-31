@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 
 try:
-  client = pymongo.MongoClient("mongodb+srv://thakkellapatisateesh_db_user:KKZZxyr10C0xF40R@songsplaylistdetails.tvv6tx3.mongodb.net/")
+  client = pymongo.MongoClient("")
   
 # return a friendly error if a URI error is thrown 
 except pymongo.errors.ConfigurationError:

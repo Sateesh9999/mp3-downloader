@@ -3,8 +3,8 @@ from datetime import datetime
 import os
 
 try:
-    # link = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-    client = pymongo.MongoClient("mongodb+srv://thakkellapatisateesh_db_user:LDv3zC6fyxC75jQY@songsplaylistdetails.tvv6tx3.mongodb.net/")
+    link = os.getenv("MONGO_URI")
+    client = pymongo.MongoClient(link)
     db = client.music_downloader
 
   

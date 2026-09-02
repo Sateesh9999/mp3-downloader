@@ -31,6 +31,9 @@ COPY . .
 RUN pip install --no-cache-dir -r BE-Music-Downloader/requirements.txt
 
 WORKDIR /app/FE-Music-Downloader
+
+RUN ls -l
+
 RUN npm install
 
 # Back to app root

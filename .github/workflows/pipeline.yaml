@@ -32,7 +32,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./BE-Music-Downloader
-          path: ./BE-Music-Downloader/Dockerfile.backend
+          file: ./BE-Music-Downloader/Dockerfile.backend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/music-downloader:latest
 
@@ -41,6 +41,6 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./FE-Music-Downloader
-          path: ./FE-Music-Downloader/Dockerfile.frontend
+          file: ./FE-Music-Downloader/Dockerfile.frontend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/music-downloader-frontend:latest

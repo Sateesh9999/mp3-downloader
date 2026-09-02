@@ -39,7 +39,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install --no-cache-dir -r BE-Music-Downloader/requirements.txt
+RUN pip install -r BE-Music-Downloader/requirements.txt
 
 RUN npm install --prefix FE-Music-Downloader
 

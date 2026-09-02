@@ -2,9 +2,6 @@ version: "3.9"
 
 services:
   backend:
-    build:
-      context: ./BE-Music-Downloader/
-      dockerfile: Dockerfile.backend
     image: ${DOCKER_USERNAME}/music-downloader:latest
     container_name: music-downloader
     volumes:
@@ -15,9 +12,6 @@ services:
       - MONGO_URI=${MONGO_URI}
   
   frontend:
-    build:
-      context: ./FE-Music-Downloader/
-      dockerfile: Dockerfile.frontend
     image: ${DOCKER_USERNAME}/music-downloader-frontend:latest
     container_name: music-downloader-frontend
     ports:

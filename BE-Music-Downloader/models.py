@@ -12,8 +12,9 @@ try:
 
   
 # return a friendly error if a URI error is thrown 
-except pymongo.errors.ConfigurationError:
-  print("An Invalid URI host error was received. Is your Atlas host name correct in your connection string?")
+except Exception as e:
+    print("An error occurred while connecting to MongoDB:", e)
+    print("An Invalid URI host error was received. Is your Atlas host name correct in your connection string?")
   
 
 class Playlist():

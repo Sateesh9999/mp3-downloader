@@ -15,6 +15,4 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 5173
 
-WORKDIR /app/FE-Music-Downloader
-
 CMD ["npm", "run", "dev"]

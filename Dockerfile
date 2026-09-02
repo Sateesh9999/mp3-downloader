@@ -30,13 +30,13 @@ COPY . .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r BE-Music-Downloader/requirements.txt
 
-# Install Node.js dependencies
-RUN npm install --prefix FE-Music-Downloader
+WORKDIR /app/FE-Music-Downloader
+RUN npm install
+
+# Back to app root
+WORKDIR /app
 
 # Create music directory
 RUN mkdir -p /app/music
 
-# -------------------------
-# Start backend + frontend
-# -------------------------
 CMD ["sh", "-c", "python /app/BE-Music-Downloader/app.py & npm run --prefix /app/FE-Music-Downloader dev"]

@@ -34,6 +34,7 @@ jobs:
           context: ./BE-Music-Downloader
           file: ./BE-Music-Downloader/Dockerfile.backend
           push: true
+          no-cache: true
           tags: ${{ secrets.DOCKER_USERNAME }}/music-downloader:latest
 
       
@@ -43,4 +44,5 @@ jobs:
           context: ./FE-Music-Downloader
           file: ./FE-Music-Downloader/Dockerfile.frontend
           push: true
+          no-cache: true
           tags: ${{ secrets.DOCKER_USERNAME }}/music-downloader-frontend:latest

@@ -13,7 +13,7 @@ class Config:
     # MONGO_URI = os.getenv("MONGO_URI")
     
     # Paths
-    DEST_DIR = os.getenv("DEST_DIR", "C:/Users/thakk/Music")
+    DEST_DIR = os.getenv("DEST_DIR", "/app/music")
     
     # Server
     BACKEND_PORT = int(os.getenv("BACKEND_PORT", 5000))

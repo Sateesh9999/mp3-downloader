@@ -2,8 +2,10 @@ import pymongo
 from datetime import datetime
 import os
 
+
+link = os.getenv("MONGO_URI")
+db = None
 try:
-    link = os.getenv("MONGO_URI")
     client = pymongo.MongoClient(link)
     db = client.music_downloader
 

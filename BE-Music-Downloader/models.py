@@ -1,4 +1,5 @@
-import pymongo
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
 from datetime import datetime
 import os
 
@@ -6,7 +7,7 @@ import os
 link = os.getenv("MONGO_URI")
 db = None
 try:
-    client = pymongo.MongoClient(link)
+    client = MongoClient(link, server_api=ServerApi('1'))
     db = client.music_downloader
 
   

@@ -39,7 +39,7 @@ def create_app(config_name=None):
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "http://192.168.1.45:5173",
-                "http://172.29.128.1:5173/"
+                "http://172.29.128.1:5173"
             ]
         }
     })

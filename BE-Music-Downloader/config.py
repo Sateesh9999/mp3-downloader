@@ -17,7 +17,7 @@ class Config:
     
     # Server
     BACKEND_PORT = int(os.getenv("BACKEND_PORT", 5000))
-    FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://0.0.0.0:5173")
+    FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
     
     # Downloads
     DOWNLOAD_TIMEOUT = int(os.getenv("DOWNLOAD_TIMEOUT", 300))  # 5 minutes

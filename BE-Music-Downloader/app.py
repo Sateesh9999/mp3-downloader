@@ -34,7 +34,11 @@ def create_app(config_name=None):
     # Initialize CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": [app.config['FRONTEND_ORIGIN']]
+            "origins": [
+                app.config['FRONTEND_ORIGIN'],
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"
+            ]
         }
     })
     

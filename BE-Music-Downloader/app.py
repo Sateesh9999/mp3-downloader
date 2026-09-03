@@ -418,8 +418,7 @@ if __name__ == '__main__':
     port = app.config.get('BACKEND_PORT', 5000)
     print(f"Flask Server running on http://127.0.0.1:{port}")
     print(f"Frontend origin: {app.config.get('FRONTEND_ORIGIN')}")
-    print(f"Database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
-    
+    print(f"MongoDB configured: {bool(app.config.get('MONGO_URI'))}")
     app.run(
         host='0.0.0.0',
         port=port,

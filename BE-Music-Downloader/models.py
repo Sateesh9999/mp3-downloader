@@ -1,10 +1,11 @@
 from pymongo import MongoClient
+from config import get_config
 from pymongo.server_api import ServerApi
 from datetime import datetime
 import os
 
-
-link = os.getenv("MONGO_URI")
+config = get_config()
+link = config.MONGO_URI
 db = None
 try:
     client = MongoClient(link, server_api=ServerApi('1'))

@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 class Config:
     """Base configuration"""
@@ -10,7 +10,7 @@ class Config:
     TESTING = False
     
     # Database
-    # MONGO_URI = os.getenv("MONGO_URI")
+    MONGO_URI = os.getenv("MONGO_URI")
     
     # Paths
     DEST_DIR = os.getenv("DEST_DIR", "/app/music")

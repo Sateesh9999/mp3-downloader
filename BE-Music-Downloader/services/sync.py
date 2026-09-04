@@ -1,8 +1,10 @@
 """Unified sync service for handling playlist synchronization"""
 import os
 import re
+import json
 import bson
 import hashlib
+import subprocess
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -10,6 +12,17 @@ from typing import Tuple, List, Dict, Any, Optional
 from bson import ObjectId
 from models import db, Playlist, Track, SyncHistory
 from sources import YouTubeSource
+import asyncio
+from shazamio import Shazam
+from dataclasses import dataclass
+
+@dataclass
+class TrackInfo:
+    song_title: str
+    artist_name: str
+    cover_art_url: str | None
+    genre: str | None
+    album_name: str | None
 
 
 class SyncService:
@@ -87,7 +100,7 @@ class SyncService:
             # playlist folders separate and make file deletion safe.
             folder_key = f"{source}:{info.get('source_id') or normalized_url}"
             folder_suffix = hashlib.sha256(folder_key.encode('utf-8')).hexdigest()[:10]
-            playlist_folder = os.path.join(dest_dir, f'{safe_name} [{folder_suffix}]')
+            playlist_folder = dest_dir
             os.makedirs(playlist_folder, exist_ok=True)
 
             playlist = {
@@ -97,7 +110,8 @@ class SyncService:
                 'source_id': info.get('source_id'),
                 'description': info.get('description'),
                 'folder_path': playlist_folder,
-                'track_count': info.get('track_count', 0),
+                'tracks': [],
+                'track_count': 0,
                 'sync_status': 'pending',
                 'created_at': datetime.utcnow(),
                 'last_sync_time': None
@@ -111,6 +125,49 @@ class SyncService:
         except Exception as e:
             return False, f"Error adding playlist: {str(e)}", None
     
+    @staticmethod
+    def extract_album_name(text: str) -> str:
+        # First try to find text inside double quotes
+        match_quotes = re.search(r'"([^"]+)"', text)
+        if match_quotes:
+            return match_quotes.group(1)
+        
+        # If no quotes, try to find text inside parentheses
+        match_parentheses = re.search(r'\(([^)]+)\)', text)
+        if match_parentheses:
+            return match_parentheses.group(1)
+        
+        # If neither found, return None
+        return None
+
+
+    @staticmethod
+    async def get_accurate_metadata(audio_file_path):
+        # Initialize the Shazam database client
+        shazam = Shazam()
+        
+        # Generate an acoustic fingerprint and fetch matching metadata
+        print(f"Analyzing audio file: {audio_file_path}...")
+        track_data = await shazam.recognize(audio_file_path)
+        
+        # Check if a verifiable match was found
+        if 'track' in track_data:
+            song_title = track_data['track']['title']
+            artist_name = track_data['track']['subtitle']
+            cover_art_url = track_data['track']['images']['coverart'] if 'images' in track_data['track'] else None
+            genre = track_data['track']['genres']['primary'] if 'genres' in track_data['track'] else None
+            album_name = SyncService.extract_album_name(song_title)  # Extract album name from the title if present
+            
+            return TrackInfo(
+                song_title=song_title,
+                artist_name=artist_name,
+                cover_art_url=cover_art_url,
+                genre=genre,
+                album_name=album_name
+            )
+
+        return None
+
     @staticmethod
     def sync_playlist(
         playlist_id: ObjectId,
@@ -168,26 +225,31 @@ class SyncService:
                     # permanently excluding the track.
                     if existing_track['download_status'] == 'failed':
                         db['Track'].update_one({'_id': existing_track['_id']}, {'$set': {'download_status': 'pending', 'download_error': None}})
+                    else:
+                        Playlist.addTrackToPlaylist(playlist_id, existing_track['_id'])
                     continue
 
                 # Create new track record
                 track = Track.addTrack({
-                    'playlist_id': playlist_id,
                     'title': track_data['title'],
                     'artist': track_data.get('artist'),
                     'duration': track_data.get('duration'),
                     'source_id': track_data['source_id'],
                     'download_status': 'pending',
+                    'album': None,
+                    'cover_art': None,
                     'filename': None,
                     'file_path': None,
                     'file_size': None,
                     'added_date': datetime.utcnow(),
                     'downloaded_date': None
                 })
+                Playlist.addTrackToPlaylist(playlist_id, track['_id'])
 
                 new_tracks += 1
 
             tracks_to_download = list(Track.getTracksPending(playlist_id, download_status='pending'))
+            print(f"Tracks to download: {len(tracks_to_download)}")  # Debugging line to check the number of tracks to download
 
             if tracks_to_download:
                 download_results = SyncService._download_tracks_in_parallel(
@@ -212,6 +274,17 @@ class SyncService:
                                 'file_size': os.path.getsize(file_path) if file_path and os.path.exists(file_path) else 0,
                                 'downloaded_date': datetime.utcnow()
                             }})
+
+                            trackInfo = asyncio.run(SyncService.get_accurate_metadata(file_path))
+
+                            if trackInfo:
+                                db['Track'].update_one({'_id': track['_id']}, {'$set': {
+                                    'title': trackInfo.song_title,
+                                    'artist': trackInfo.artist_name,
+                                    'cover_art': trackInfo.cover_art_url,
+                                    'album': trackInfo.album_name,
+                                    'genre': trackInfo.genre
+                                }})
 
                         else:
                             db['Track'].update_one({'_id': track['_id']}, {'$set': {
@@ -242,7 +315,7 @@ class SyncService:
             # Update playlist
             db['Playlist'].update_one({'_id': playlist_id}, {
                 '$set': {
-                    'track_count': len(list(Track.getTracksByPlaylistId(playlist_id=playlist_id))),
+                    # 'track_count': len(list(Track.getTracksByPlaylistId(playlist_id=playlist_id))),
                     'last_sync_time': datetime.utcnow(),
                     'sync_status': 'success' if failed_tracks == 0 else 'partial'
                 }
@@ -363,11 +436,6 @@ class SyncService:
             playlist = Playlist.getPlaylistById(playlist_id)
             if not playlist:
                 return False, "Playlist not found"
-            
-            # Delete files if requested
-            if delete_files and os.path.exists(playlist['folder_path']):
-                import shutil
-                shutil.rmtree(playlist['folder_path'], ignore_errors=True)
             
             # Delete database records
             playlist = Playlist.deletePlaylist(playlist_id)

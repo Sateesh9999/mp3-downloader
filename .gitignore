@@ -1,2 +1,16 @@
 BE-Music-Downloader/.env
 docker-compose.yaml
+BE-Music-Downloader/.venv
+BE-Music-Downloader/__pycache__/config.cpython-312.pyc
+BE-Music-Downloader/__pycache__/config.cpython-314.pyc
+BE-Music-Downloader/__pycache__/models.cpython-312.pyc
+BE-Music-Downloader/__pycache__/models.cpython-314.pyc
+BE-Music-Downloader/services/__pycache__/__init__.cpython-312.pyc
+BE-Music-Downloader/services/__pycache__/sync.cpython-312.pyc
+BE-Music-Downloader/sources/__pycache__/__init__.cpython-312.pyc
+BE-Music-Downloader/sources/__pycache__/youtube.cpython-312.pyc
+BE-Music-Downloader/sources/__pycache__/spotify.cpython-314.pyc
+BE-Music-Downloader/services/__pycache__/__init__.cpython-314.pyc
+BE-Music-Downloader/services/__pycache__/sync.cpython-314.pyc
+BE-Music-Downloader/sources/__pycache__/__init__.cpython-314.pyc
+BE-Music-Downloader/sources/__pycache__/youtube.cpython-314.pyc

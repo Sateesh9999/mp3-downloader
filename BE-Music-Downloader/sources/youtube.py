@@ -122,11 +122,11 @@ class YouTubeSource:
             command = [
                 'yt-dlp',
                 '--extract-audio',
-                '--audio-format', 'mp3',
+                '--audio-format', 'opus',
                 '--audio-quality', '0',
                 # The video ID prevents same-title tracks and parallel workers
                 # from overwriting one another.
-                '-o', os.path.join(output_dir, '%(title)s [%(id)s].%(ext)s'),
+                '-o', os.path.join(output_dir, '[%(id)s].%(ext)s'),
                 video_url
             ]
             
@@ -148,19 +148,19 @@ class YouTubeSource:
                     break
             
             if file_info and os.path.exists(file_info):
-                return True, "Download successful", file_info
+                return True, "Download info successful", file_info
             else:
                 # Try to find the file by searching the output directory
-                mp3_files = [
+                opus_files = [
                     f for f in os.listdir(output_dir)
-                    if f.lower().endswith('.mp3') and f'[{video_id}]' in f
+                    if f.lower().endswith('.opus') and f'[{video_id}]' in f
                 ]
-                if mp3_files:
+                if opus_files:
                     file_path = max(
-                        (os.path.join(output_dir, name) for name in mp3_files),
+                        (os.path.join(output_dir, name) for name in opus_files),
                         key=os.path.getmtime,
                     )
-                    return True, "Download successful", file_path
+                    return True, "Download path successful", file_path
                 
                 return False, "File not found after download", None
                 
@@ -172,43 +172,3 @@ class YouTubeSource:
             return False, "yt-dlp not found. Install with: pip install yt-dlp", None
         except Exception as e:
             return False, f"Unexpected error: {str(e)}", None
-    
-    # @staticmethod
-    # def download_playlist(url: str, output_dir: str, timeout: int = 3600) -> Tuple[bool, str]:
-    #     """
-    #     Download entire YouTube playlist
-    #     Returns: (success, message)
-    #     """
-    #     if not os.path.exists(output_dir):
-    #         os.makedirs(output_dir)
-        
-    #     try:
-    #         command = [
-    #             'yt-dlp',
-    #             '--extract-audio',
-    #             '--audio-format', 'opus',
-    #             '--audio-quality', '0',
-    #             '-o', os.path.join(output_dir, '%(title)s.%(ext)s'),
-    #             url
-    #         ]
-            
-    #         print(f"Downloading YouTube playlist: {url}")
-            
-    #         result = subprocess.run(
-    #             command,
-    #             capture_output=True,
-    #             text=True,
-    #             timeout=timeout,
-    #             check=True
-    #         )
-            
-    #         return True, "Playlist downloaded successfully"
-            
-        except subprocess.TimeoutExpired:
-            return False, "Download timed out (exceeded time limit)"
-        except subprocess.CalledProcessError as e:
-            return False, f"yt-dlp failed with error: {e.stderr}"
-        except FileNotFoundError:
-            return False, "yt-dlp not found. Install with: pip install yt-dlp"
-        except Exception as e:
-            return False, f"Unexpected error: {str(e)}"

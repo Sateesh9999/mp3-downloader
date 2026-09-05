@@ -14,3 +14,5 @@ BE-Music-Downloader/services/__pycache__/__init__.cpython-314.pyc
 BE-Music-Downloader/services/__pycache__/sync.cpython-314.pyc
 BE-Music-Downloader/sources/__pycache__/__init__.cpython-314.pyc
 BE-Music-Downloader/sources/__pycache__/youtube.cpython-314.pyc
+FE-Music-Downloader/dist
+FE-Music-Downloader/node_modules

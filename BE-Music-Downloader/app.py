@@ -244,11 +244,17 @@ def create_app(config_name=None):
         try:
             track_id = ObjectId(track_id)
             track = Track.getTrackById(track_id)
-            
+            path = os.path.join(app.config['DESR_DIR'], track['filename'] + '.opus') if track and track.get('filename') else None
             if not track:
                 return jsonify({'status': 'error', 'message': 'Track not found'}), 404
             
             if not track['file_path'] or not os.path.exists(track['file_path']):
+                if path and os.path.exists(path):
+                    return send_file(
+                        path,
+                        mimetype='audio/mpeg',
+                        as_attachment=False
+                    )
                 return jsonify({'status': 'error', 'message': 'Track file not found'}), 404
             
             return send_file(
@@ -266,11 +272,17 @@ def create_app(config_name=None):
         try:
             track_id = ObjectId(track_id)
             track = Track.getTrackById(track_id)
-            
+            path = os.path.join(app.config['DESR_DIR'], track['filename'] + '.opus') if track and track.get('filename') else None
             if not track:
                 return jsonify({'status': 'error', 'message': 'Track not found'}), 404
             
             if not track['file_path'] or not os.path.exists(track['file_path']):
+                if path and os.path.exists(path):
+                    return send_file(
+                        path,
+                        mimetype='audio/mpeg',
+                        as_attachment=False
+                    )
                 return jsonify({'status': 'error', 'message': 'Track file not found'}), 404
             
             return send_file(

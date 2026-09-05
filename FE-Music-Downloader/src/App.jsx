@@ -96,7 +96,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>Music Downloader v1.0 | Sync your favorite playlists from Spotify & YouTube</p>
+        <p>Music Downloader v1.0 | Sync your favorite playlists from YouTube</p>
       </footer>
     </div>
   )

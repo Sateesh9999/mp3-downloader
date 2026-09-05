@@ -3,13 +3,58 @@ import './styles/App.css'
 import PlaylistManager from './pages/PlaylistManager'
 import SyncDashboard from './pages/SyncDashboard'
 import Library from './pages/Library'
+import AudioPlayer from './components/AudioPlayer'
 import { healthCheck } from './api/client'
 
+const PLAYER_STORAGE_KEY = 'music-downloader-player'
+
+const getSavedPlayer = () => {
+  try {
+    const savedPlayer = localStorage.getItem(PLAYER_STORAGE_KEY)
+    return savedPlayer ? JSON.parse(savedPlayer) : null
+  } catch {
+    return null
+  }
+}
+
 function App() {
-  const [activeTab, setActiveTab] = useState('playlists')
-  const [libraryPlaylistId, setLibraryPlaylistId] = useState(null)
+  const [activeTab, setActiveTab] = useState('library')
   const [isConnected, setIsConnected] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [savedPlayer] = useState(getSavedPlayer)
+  const [currentTrack, setCurrentTrack] = useState(savedPlayer?.track || null)
+  const [playableTracks, setPlayableTracks] = useState([])
+  const [currentPosition, setCurrentPosition] = useState(savedPlayer?.position || 0)
+  const [shouldAutoPlay, setShouldAutoPlay] = useState(false)
+  const [currentPlaylist, setCurrentPlaylist] = useState(savedPlayer?.playlist || 'Unknown playlist')
+
+  const handlePlayTrack = (track, tracks, playlist = 'Unknown playlist') => {
+    setCurrentTrack(track)
+    setPlayableTracks(tracks)
+    setCurrentPlaylist(playlist)
+    setCurrentPosition(0)
+    setShouldAutoPlay(true)
+  }
+
+  const handleTrackChange = (track) => {
+    setCurrentTrack(track)
+    setCurrentPosition(0)
+    setShouldAutoPlay(true)
+  }
+
+  const handlePositionChange = (position) => {
+    setCurrentPosition(position)
+  }
+
+  useEffect(() => {
+    if (!currentTrack) return
+
+    localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify({
+      track: currentTrack,
+      position: currentPosition,
+      playlist: currentPlaylist
+    }))
+  }, [currentTrack, currentPosition])
 
   useEffect(() => {
     // Check server connection
@@ -36,8 +81,20 @@ function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-content">
-          <h1>🎵 Music Downloader</h1>
-          <p className="subtitle">Sync & Stream your playlists</p>
+          {currentTrack && (
+            <div className="player-section">
+              <AudioPlayer 
+                track={currentTrack}
+                tracks={playableTracks}
+                playlist={currentPlaylist}
+                initialTime={currentPosition}
+                autoPlay={shouldAutoPlay}
+                onTrackChange={handleTrackChange}
+                onPositionChange={handlePositionChange}
+              />
+            </div>
+          )}
+          
           <div className="connection-status">
             <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></span>
             <span className="status-text">
@@ -49,23 +106,24 @@ function App() {
 
       <nav className="app-nav">
         <button 
-          className={`nav-button ${activeTab === 'playlists' ? 'active' : ''}`}
-          onClick={() => setActiveTab('playlists')}
-        >
-          📋 Playlists
-        </button>
-        <button 
-          className={`nav-button ${activeTab === 'sync' ? 'active' : ''}`}
-          onClick={() => setActiveTab('sync')}
-        >
-          🔄 Sync
-        </button>
-        <button 
           className={`nav-button ${activeTab === 'library' ? 'active' : ''}`}
           onClick={() => setActiveTab('library')}
         >
           🎧 Library
         </button>
+        <button 
+          className={`nav-button ${activeTab === 'playlists' ? 'active' : ''}`}
+          onClick={() => setActiveTab('playlists')}
+        >
+          ➕ Add Playlist
+        </button>
+        <button 
+          className={`nav-button ${activeTab === 'sync' ? 'active' : ''}`}
+          onClick={() => setActiveTab('sync')}
+        >
+          ⚙️ Set Auto Sync
+        </button>
+
       </nav>
 
       <main className="app-content">
@@ -81,16 +139,14 @@ function App() {
           </div>
         ) : (
           <>
-            {activeTab === 'playlists' && (
-              <PlaylistManager
-                onViewPlaylist={(playlistId) => {
-                  setLibraryPlaylistId(playlistId)
-                  setActiveTab('library')
-                }}
+            {activeTab === 'library' && (
+              <Library
+                onPlayTrack={handlePlayTrack}
               />
             )}
+            {activeTab === 'playlists' && <PlaylistManager />}
             {activeTab === 'sync' && <SyncDashboard />}
-            {activeTab === 'library' && <Library initialPlaylistId={libraryPlaylistId} />}
+
           </>
         )}
       </main>

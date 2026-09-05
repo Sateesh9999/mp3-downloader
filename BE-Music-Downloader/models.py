@@ -1,8 +1,6 @@
 from pymongo import MongoClient
 from config import get_config
 from pymongo.server_api import ServerApi
-from datetime import datetime
-import os
 
 config = get_config()
 link = config.MONGO_URI
@@ -122,9 +120,6 @@ class SyncHistory():
         result = db['SyncHistory'].insert_one(sync_history)
         sync_history['_id'] = result.inserted_id
         return sync_history
-
-    def getSyncHistoriesByPlaylistId(playlist_id):
-        return db['SyncHistory'].find({"playlist_id": playlist_id}).sort("start_time", pymongo.DESCENDING)
 
 
 class ScheduledSync():

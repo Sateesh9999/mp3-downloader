@@ -1,10 +1,6 @@
 """Unified sync service for handling playlist synchronization"""
 import os
 import re
-import json
-import bson
-import hashlib
-import subprocess
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -98,8 +94,6 @@ class SyncService:
             safe_name = SyncService.safe_playlist_name(info.get('name'), f'{source.title()} Playlist')
             # Human-readable names are not unique; use a stable suffix to keep
             # playlist folders separate and make file deletion safe.
-            folder_key = f"{source}:{info.get('source_id') or normalized_url}"
-            folder_suffix = hashlib.sha256(folder_key.encode('utf-8')).hexdigest()[:10]
             playlist_folder = dest_dir
             os.makedirs(playlist_folder, exist_ok=True)
 

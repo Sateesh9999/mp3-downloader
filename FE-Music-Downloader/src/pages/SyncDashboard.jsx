@@ -19,7 +19,7 @@ export default function SyncDashboard() {
   useEffect(() => {
     fetchData()
     // Refresh data every 10 seconds
-    const interval = setInterval(fetchData, 10000)
+    const interval = setInterval(fetchData, 60000)
     return () => clearInterval(interval)
   }, [])
 
@@ -214,7 +214,11 @@ export default function SyncDashboard() {
               <tbody>
                 {syncHistory.slice(0, 10).map((history) => (
                   <tr key={history._id}>
-                    <td>{history.playlist_id}</td>
+                    <td>
+                      {playlists.find(
+                        (playlist) => playlist._id === history.playlist_id
+                      )?.name || 'Unknown playlist'}
+                    </td>
                     <td>{history.sync_type}</td>
                     <td><span className={`status-${history.status}`}>{history.status}</span></td>
                     <td>{history.new_tracks}</td>

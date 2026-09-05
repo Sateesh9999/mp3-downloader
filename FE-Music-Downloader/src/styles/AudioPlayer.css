@@ -1,42 +1,46 @@
 .audio-player {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 0px;
+  padding: 15px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   position: relative;
 }
 
+.player-details-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .player-track-info {
   display: flex;
+  gap: 16px; /* Adjust this value to your preferred spacing */
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20px;
   position: relative;
 }
 
-.btn-close {
+.cover-art {
   background: transparent;
   border: none;
   color: white;
   font-size: 24px;
   cursor: pointer;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 80px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  transition: all 0.3s;
-}
-
-.btn-close:hover {
-  transform: rotate(90deg);
 }
 
 .track-details {
   flex: 1;
+  align-items: left;
   margin-right: 10px;
 }
 
@@ -53,6 +57,16 @@
   margin: 0;
   font-size: 13px;
   opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-playlist {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -114,13 +128,13 @@
 
 .btn-control {
   background: rgba(255, 255, 255, 0.2);
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  border: 0px solid rgba(255, 255, 255, 0.4);
   color: white;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -139,11 +153,11 @@
   background: white;
   border: none;
   color: #667eea;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 24px;
+  font-size: 44px;
   display: flex;
   align-items: center;
   justify-content: center;

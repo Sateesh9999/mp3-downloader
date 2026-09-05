@@ -67,6 +67,19 @@ def create_app(config_name=None):
             }), 200
         except Exception as e:
             return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    @app.route('/api/tracks', methods=['GET'])
+    def get_tracks():
+        """Get all tracks stored in the database"""
+        try:
+            tracks_list = list(Track.getTracks())
+            return jsonify({
+                'status': 'success',
+                'tracks': tracks_list,
+                'count': len(tracks_list)
+            }), 200
+        except Exception as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 500
     
     @app.route('/api/playlists', methods=['POST'])
     def add_playlist():

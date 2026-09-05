@@ -2,8 +2,16 @@ import React, { useState, useEffect, useRef } from 'react'
 import { streamAPI } from '../api/client'
 import '../styles/AudioPlayer.css'
 
-export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
-  const [isPlaying, setIsPlaying] = useState(true)
+export default function AudioPlayer({
+  track,
+  tracks = [],
+  playlist = 'Unknown playlist',
+  initialTime = 0,
+  autoPlay = true,
+  onTrackChange,
+  onPositionChange
+}) {
+  const [isPlaying, setIsPlaying] = useState(autoPlay)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const audioRef = useRef(null)
@@ -12,12 +20,12 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
     const audio = audioRef.current
     if (!audio) return
 
-    setCurrentTime(0)
+    setCurrentTime(initialTime)
     setDuration(0)
-    if (isPlaying) {
-      audio.play().catch(() => setIsPlaying(false))
+    if (autoPlay) {
+      audio.play().catch(() => setIsPlaying(true)) // Handle autoplay restrictions
     }
-  }, [track._id])
+  }, [track._id, autoPlay])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -74,18 +82,46 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
       <audio
         ref={audioRef}
         src={streamAPI.stream(track._id)}
-        onLoadedMetadata={() => setDuration(audioRef.current.duration)}
-        onTimeUpdate={() => setCurrentTime(audioRef.current.currentTime)}
+        onLoadedMetadata={() => {
+          setDuration(audioRef.current.duration)
+          audioRef.current.currentTime = initialTime
+        }}
+        onTimeUpdate={() => {
+          const position = audioRef.current.currentTime
+          setCurrentTime(position)
+          onPositionChange(position)
+        }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onError={() => setIsPlaying(false)}
       />
 
-      <div className="player-track-info">
-        <button onClick={onClose} className="btn-close" title="Close player">✕</button>
-        <div className="track-details">
-          <h4>{track.title}</h4>
-          <p>{track.artist || 'Unknown'}</p>
+      <div className="player-details-controls">
+        <div className="player-track-info">
+          <img src={track.cover_art || '/default-cover.png'} alt={track.title} className="cover-art" />
+          <div className="track-details">
+            <h4>{track.title}</h4>
+            <p>{track.artist || 'Unknown'}</p>
+            <p className="player-playlist">From: {playlist}</p>
+          </div>
+        </div>
+
+        <div className="player-controls">
+          <a
+            href={streamAPI.download(track._id)}
+            download={track.filename}
+            className="btn-control"
+            title="Download"
+          >
+            ⬇️
+          </a>
+          <button onClick={togglePlay} className="btn-play">
+            {isPlaying ? '⏸️' : '▶️'}
+          </button>
+          <div className="track-details">
+            <button onClick={handlePrevious} className="btn-control" title="Previous">⏮️</button>
+            <button onClick={handleNext} className="btn-control" title="Next">⏭️</button>
+          </div>
         </div>
       </div>
 
@@ -106,21 +142,6 @@ export default function AudioPlayer({ track, tracks, onTrackChange, onClose }) {
         <span className="time">{formatTime(duration)}</span>
       </div>
 
-      <div className="player-controls">
-        <button onClick={handlePrevious} className="btn-control" title="Previous">⏮️</button>
-        <button onClick={togglePlay} className="btn-play">
-          {isPlaying ? '⏸️' : '▶️'}
-        </button>
-        <button onClick={handleNext} className="btn-control" title="Next">⏭️</button>
-        <a
-          href={streamAPI.download(track._id)}
-          download={track.filename}
-          className="btn-control"
-          title="Download"
-        >
-          ⬇️
-        </a>
-      </div>
     </div>
   )
 }

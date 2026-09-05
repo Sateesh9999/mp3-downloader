@@ -18,6 +18,11 @@ export const playlistAPI = {
     api.delete(`/playlists/${id}`, { data: { delete_files: deleteFiles } })
 }
 
+// Track endpoints
+export const trackAPI = {
+  getAll: () => api.get('/tracks')
+}
+
 // Sync endpoints
 export const syncAPI = {
   syncOne: (playlistId) => api.post(`/sync/playlist/${playlistId}`),

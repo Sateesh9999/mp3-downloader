@@ -7,15 +7,23 @@
 
 .app-header {
   background: rgba(255, 255, 255, 0.95);
-  padding: 30px 20px;
+  padding: 0px 0px 20px 0px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-.header-content h1 {
+/* .header-content h1 {
   color: #667eea;
   font-size: 32px;
   margin-bottom: 8px;
+} */
+
+.app-header .player-section {
+  margin: 0 auto 20px;
+  max-width: 100%;
 }
 
 .header-content .subtitle {

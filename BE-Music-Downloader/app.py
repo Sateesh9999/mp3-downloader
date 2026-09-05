@@ -244,7 +244,7 @@ def create_app(config_name=None):
         try:
             track_id = ObjectId(track_id)
             track = Track.getTrackById(track_id)
-            path = DESR_DIR + '/' + track['filename']
+            path = app.config['DESR_DIR'] + '/' + track['filename']
             if not track:
                 return jsonify({'status': 'error', 'message': 'Track not found'}), 404
             
@@ -272,7 +272,7 @@ def create_app(config_name=None):
         try:
             track_id = ObjectId(track_id)
             track = Track.getTrackById(track_id)
-            path = DESR_DIR + '/' + track['filename']
+            path = app.config['DESR_DIR'] + '/' + track['filename']
             if not track:
                 return jsonify({'status': 'error', 'message': 'Track not found'}), 404
             

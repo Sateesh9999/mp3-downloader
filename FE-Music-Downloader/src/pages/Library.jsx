@@ -140,18 +140,43 @@ export default function Library({ initialPlaylistId, onPlayTrack }) {
             <h2>🎧 Music Library</h2>
             <p className="section-subtitle">Your downloaded music, organized by source.</p>
           </div>
-          <div className="library-toolbar">
+          {/* <div className="library-toolbar">
             <button
               className={`nav-button ${activeView === 'database' ? 'active' : ''}`}
               onClick={() => setActiveView('database')}
             >
               Drift Through DataBase
             </button>
-          </div>
+          </div> */}
+        </div>
+
+        <div className="library-tabs">
+          <nav className="library-nav">
+            <button
+              className={`nav-button ${activeView === 'database' ? 'active' : ''}`}
+              onClick={() => setActiveView('database')}
+            >
+              Drift Through DataBase
+            </button>
+            {playlists.map((playlist) => (
+              <div key={playlist._id}>
+                <button
+                  className={`nav-button ${activeView === playlist._id && selectedPlaylistId === playlist._id ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedPlaylistId(playlist._id)
+                    setActiveView(playlist._id)
+                  }}
+                >
+                  <span className="playlist-name">{playlist.name}</span>
+                  {/* <span className="track-count">{playlist.track_count} tracks</span> */}
+                </button>
+              </div>
+            ))}
+          </nav>
         </div>
 
         <div className="library-layout">
-          <div className="sidebar">
+          {/* <div className="sidebar">
             <h3>🎵 Your Playlists</h3>
             {playlists.length === 0 ? (
               <p className="empty-text">No playlists yet</p>
@@ -201,7 +226,7 @@ export default function Library({ initialPlaylistId, onPlayTrack }) {
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
 
           <div className="main-content">
             {activeView === 'database' ? (
